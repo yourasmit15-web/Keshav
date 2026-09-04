@@ -22,7 +22,7 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
       - name: Install required Android SDK packages
-        run: yes | sdkmanager --channel=1 "platforms;android-37" "build-tools;36.0.0" "platform-tools"
+        run: yes | sdkmanager "platforms;android-37.0" "build-tools;36.0.0" "platform-tools"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
