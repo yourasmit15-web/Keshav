@@ -9,5 +9,6 @@ interface ChatRepository {
     fun observeMessages(sessionId: String): Flow<List<ChatMessage>>
     suspend fun saveSession(session: ChatSession)
     suspend fun saveMessage(message: ChatMessage)
+    suspend fun deleteSession(sessionId: String)
     suspend fun deleteAll()
 }
