@@ -6,10 +6,12 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.sse.sse
 import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
+import io.ktor.http.HttpMethod
 import io.ktor.http.contentType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +19,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
@@ -24,6 +27,7 @@ import kotlinx.serialization.json.putJsonObject
 class AnthropicRemote(private val baseUrl: String, private val apiKey: String, private val model: String = "claude-sonnet-4-5") {
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation)
+        install(SSE)
         install(HttpTimeout) { requestTimeoutMillis = 120_000; connectTimeoutMillis = 20_000; socketTimeoutMillis = 120_000 }
     }
 
@@ -31,7 +35,7 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
         if (apiKey.isBlank()) { emit(StreamEvent.Error("Add your Anthropic API key in Settings first.")); return@flow }
         try {
             client.sse(urlString = "${baseUrl.trimEnd('/')}/v1/messages", request = {
-                method = io.ktor.http.HttpMethod.Post
+                method = HttpMethod.Post
                 contentType(ContentType.Application.Json)
                 header("x-api-key", apiKey)
                 header("anthropic-version", "2023-06-01")
@@ -41,28 +45,29 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
                     put("max_tokens", 4096)
                     put("stream", true)
                     if (!systemPrompt.isNullOrBlank()) put("system", systemPrompt)
-                    putJsonArray("tools") {
-                        addJsonObject {
-                            put("type", "web_search_20250305")
-                            put("name", "web_search")
-                            put("max_uses", 5)
-                        }
-                    }
                     putJsonArray("messages") {
-                        messages.forEach { message -> add(buildJsonObject {
-                            put("role", if (message.role.name == "USER") "user" else "assistant")
-                            if (message.attachments.isEmpty()) put("content", message.content) else putJsonArray("content") {
-                                if (message.content.isNotBlank()) add(buildJsonObject { put("type", "text"); put("text", message.content) })
-                                message.attachments.forEach { a -> add(buildJsonObject {
-                                    put("type", "image")
-                                    putJsonObject("source") {
-                                        put("type", "base64")
-                                        put("media_type", a.mimeType)
-                                        put("data", a.base64)
+                        messages.forEach { message ->
+                            add(buildJsonObject {
+                                put("role", if (message.role.name == "USER") "user" else "assistant")
+                                if (message.attachments.isEmpty()) {
+                                    put("content", message.content)
+                                } else {
+                                    putJsonArray("content") {
+                                        if (message.content.isNotBlank()) add(buildJsonObject { put("type", "text"); put("text", message.content) })
+                                        message.attachments.forEach { a ->
+                                            add(buildJsonObject {
+                                                put("type", "image")
+                                                putJsonObject("source") {
+                                                    put("type", "base64")
+                                                    put("media_type", a.mimeType)
+                                                    put("data", a.base64)
+                                                }
+                                            })
+                                        }
                                     }
-                                }) }
-                            }
-                        }) }
+                                }
+                            })
+                        }
                     }
                 }.toString())
             }) {
@@ -72,9 +77,7 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
                         "content_block_delta" -> {
                             val text = runCatching {
                                 val delta = Json.parseToJsonElement(data).jsonObject["delta"]?.jsonObject
-                                if (delta?.get("type")?.toString()?.contains("text_delta") == true) {
-                                    delta["text"]?.toString()?.trim('"')
-                                } else null
+                                if (delta?.get("type")?.jsonPrimitive?.content == "text_delta") delta["text"]?.jsonPrimitive?.content else null
                             }.getOrNull()
                             if (!text.isNullOrEmpty()) emit(StreamEvent.TextDelta(text))
                         }
@@ -88,7 +91,7 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
     }
 
     private fun parseError(data: String): String = runCatching {
-        Json.parseToJsonElement(data).jsonObject["error"]?.jsonObject?.get("message")?.toString()?.trim('"') ?: data
+        Json.parseToJsonElement(data).jsonObject["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content ?: data
     }.getOrDefault(data)
 
     fun close() = client.close()
