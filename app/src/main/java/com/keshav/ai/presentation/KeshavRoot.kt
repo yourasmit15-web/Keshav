@@ -61,7 +61,13 @@ fun KeshavRoot(vm: ChatViewModel) {
         }
     }
     if (settingsOpen) SettingsDialog(vm, settings, vm.hasApiKey()) { settingsOpen = false }
-    if (clearOpen) AlertDialog({ clearOpen = false }, { Text("Clear all chats?") }, { Text("This removes local history.") }, { TextButton({ vm.clearAll(); clearOpen = false }) { Text("Clear") } }, { TextButton({ clearOpen = false }) { Text("Cancel") } })
+    if (clearOpen) AlertDialog(
+        onDismissRequest = { clearOpen = false },
+        title = { Text("Clear all chats?") },
+        text = { Text("This removes local history.") },
+        confirmButton = { TextButton({ vm.clearAll(); clearOpen = false }) { Text("Clear") } },
+        dismissButton = { TextButton({ clearOpen = false }) { Text("Cancel") } }
+    )
 }
 
 @Composable private fun EmptyState(onSuggestion: (String) -> Unit) { Column(Modifier.fillMaxSize().padding(24.dp), Arrangement.Center, Alignment.CenterHorizontally) { Text("K", fontSize = 64.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary); Text("keshav", fontSize = 32.sp, fontWeight = FontWeight.Bold); Text("Ask questions, write code, debug, explain or analyze an image.", color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp)); Spacer(Modifier.height(20.dp)); listOf("Explain this code", "Debug my error", "Build an Android app", "Create a study plan").forEach { TextButton({ onSuggestion(it) }) { Text(it) } } } }
