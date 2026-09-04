@@ -21,19 +21,27 @@ jobs:
           java-version: '17'
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-      - name: Install Android SDK packages
-        run: yes | sdkmanager "platforms;android-36" "build-tools;36.0.0" || true
+      - name: Install required Android SDK packages
+        run: yes | sdkmanager "platforms;android-37" "build-tools;36.0.0" "platform-tools"
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.6.0'
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon
+        run: gradle assembleDebug --no-daemon --stacktrace
       - name: Unit tests
-        run: gradle test --no-daemon
-      - name: Upload APK
+        run: gradle test --no-daemon --stacktrace
+      - name: Build release APK
+        run: gradle assembleRelease --no-daemon --stacktrace
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: keshav-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      - name: Upload release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: keshav-release-apk
+          path: app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
