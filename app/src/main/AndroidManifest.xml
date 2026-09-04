@@ -5,7 +5,9 @@
     <application
         android:name=".KeshavApplication"
         android:allowBackup="true"
-        android:label="Keshav"
+        android:icon="@drawable/keshav_logo"
+        android:roundIcon="@drawable/keshav_logo"
+        android:label="keshav"
         android:supportsRtl="true"
         android:theme="@style/Theme.Keshav">
         <activity

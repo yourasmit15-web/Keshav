@@ -1,11 +1,13 @@
 package com.keshav.ai.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -20,8 +22,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.keshav.ai.R
 import com.keshav.ai.domain.model.ChatRole
 import kotlinx.coroutines.launch
 
@@ -36,21 +41,49 @@ fun KeshavRoot(viewModel: ChatViewModel) {
         drawerState = drawer,
         drawerContent = {
             Column(Modifier.padding(24.dp)) {
-                Text("Keshav", modifier = Modifier.padding(bottom = 20.dp))
-                Button(onClick = { viewModel.newChat(); scope.launch { drawer.close() } }) { Text("New Chat") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(R.drawable.keshav_logo),
+                        contentDescription = "Keshav logo",
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Text("keshav", modifier = Modifier.padding(start = 12.dp))
+                }
+                Button(
+                    onClick = { viewModel.newChat(); scope.launch { drawer.close() } },
+                    modifier = Modifier.padding(top = 20.dp)
+                ) { Text("New Chat") }
             }
         }
     ) {
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Button(onClick = { scope.launch { drawer.open() } }) { Text("☰") }
-                Text("Keshav", modifier = Modifier.padding(top = 12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(R.drawable.keshav_logo),
+                        contentDescription = "Keshav logo",
+                        modifier = Modifier.size(34.dp)
+                    )
+                    Text("keshav", modifier = Modifier.padding(start = 8.dp))
+                }
                 Button(onClick = { viewModel.stop() }) { Text("Stop") }
             }
 
             if (messages.isEmpty()) {
-                Column(Modifier.fillMaxSize().weight(1f), verticalArrangement = Arrangement.Center) {
-                    Text("Hello, I am Keshav. How can I help you today?")
+                Column(
+                    Modifier.fillMaxSize().weight(1f),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.keshav_logo),
+                        contentDescription = "Keshav AI logo",
+                        modifier = Modifier.size(140.dp)
+                    )
+                    Text("keshav", modifier = Modifier.padding(top = 12.dp))
+                    Text("Your AI assistant", modifier = Modifier.padding(top = 4.dp))
+                    Text("How can I help you today?", modifier = Modifier.padding(top = 16.dp))
                 }
             } else {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -65,7 +98,7 @@ fun KeshavRoot(viewModel: ChatViewModel) {
                     value = input,
                     onValueChange = { input = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Message Keshav…") }
+                    placeholder = { Text("Message keshav…") }
                 )
                 Button(onClick = { viewModel.send(input); input = "" }) { Text("Send") }
             }
