@@ -6,13 +6,13 @@ plugins {
 
 android {
     namespace = "com.keshav.ai"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         applicationId = "com.keshav.ai"
         minSdk = 26
-        targetSdk = 36
-        versionCode = 3
-        versionName = "1.2.0"
+        targetSdk = 37
+        versionCode = 4
+        versionName = "1.3.0"
     }
     buildTypes {
         release {
@@ -29,7 +29,7 @@ android {
 kotlin { compilerOptions { jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17) } }
 
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2026.06.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.08.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
     implementation("androidx.core:core-ktx:1.19.0")
@@ -46,6 +46,7 @@ dependencies {
     implementation("io.ktor:ktor-client-core:3.4.3")
     implementation("io.ktor:ktor-client-okhttp:3.4.3")
     implementation("io.ktor:ktor-client-content-negotiation:3.4.3")
+    implementation("io.ktor:ktor-client-sse:3.4.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
