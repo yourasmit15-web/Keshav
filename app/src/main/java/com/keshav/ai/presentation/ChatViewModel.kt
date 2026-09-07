@@ -62,24 +62,26 @@ class ChatViewModel(private val repository: ChatRepository, private val settings
     fun newChat() { stop(); messageJob?.cancel(); _session.value = ChatSession(); _messages.value = emptyList(); _error.value = null; lastPrompt = "" }
 
     fun send(text: String, uri: Uri? = null) {
-        val clean = text.trim(); if ((clean.isEmpty() && uri == null) || _busy.value) return
-        lastPrompt = clean
+        val raw = text.trim()
+        if (handleModeCommand(raw)) return
+        if ((raw.isEmpty() && uri == null) || _busy.value) return
+        lastPrompt = raw
         streamJob?.cancel()
         streamJob = viewModelScope.launch {
             _busy.value = true; _error.value = null
             val current = _session.value
             val attachment = uri?.let(::loadImage)
-            val title = if (current.title == "New chat") clean.take(48).ifBlank { "Image chat" } else current.title
+            val title = if (current.title == "New chat") raw.take(48).ifBlank { "Image chat" } else current.title
             val updated = current.copy(title = title, updatedAt = System.currentTimeMillis(), messageCount = current.messageCount + 1)
             _session.value = updated; repository.saveSession(updated)
-            val user = ChatMessage(sessionId = current.id, role = ChatRole.USER, content = clean.ifBlank { "Please analyze the attached image." }, attachmentNames = listOfNotNull(attachment?.first))
+            val user = ChatMessage(sessionId = current.id, role = ChatRole.USER, content = raw.ifBlank { "Please analyze the attached image." }, attachmentNames = listOfNotNull(attachment?.first))
             repository.saveMessage(user); _messages.update { it + user }
             val history = _messages.value.map { PromptMessage(it.role, it.content) }.toMutableList()
             if (attachment != null) history[history.lastIndex] = PromptMessage(ChatRole.USER, user.content, listOf(attachment.second))
             val remote = AnthropicRemote(_settings.value.endpoint, apiKeyStore.get().orEmpty(), _settings.value.model)
             val assistantId = UUID.randomUUID().toString(); var response = ""
             try {
-                remote.stream(history, if (_settings.value.agentMode) "You are Keshav Agent, an expert software engineer. Give reliable, executable solutions. When coding, produce complete files or precise patches, tests and verification steps. Never claim a command or build was run unless its result is provided." else null).collect { event ->
+                remote.stream(history, buildSystemPrompt(_settings.value)).collect { event ->
                     when (event) {
                         is StreamEvent.TextDelta -> { response += event.text; _messages.update { list -> list.filterNot { it.id == assistantId } + ChatMessage(assistantId, current.id, ChatRole.ASSISTANT, response, status = MessageStatus.STREAMING) } }
                         StreamEvent.MessageCompleted -> if (response.isNotBlank()) { val assistant = ChatMessage(assistantId, current.id, ChatRole.ASSISTANT, response); repository.saveMessage(assistant); _messages.update { list -> list.filterNot { it.id == assistantId } + assistant }; val finalSession = _session.value.copy(updatedAt = System.currentTimeMillis(), messageCount = _messages.value.size); _session.value = finalSession; repository.saveSession(finalSession) }
@@ -93,11 +95,49 @@ class ChatViewModel(private val repository: ChatRepository, private val settings
         }
     }
 
+    private fun handleModeCommand(text: String): Boolean {
+        val command = text.lowercase().trim()
+        val mode = when {
+            command == "/brief" -> "brief"
+            command == "/normal" -> "normal"
+            command == "/expert" -> "expert"
+            command == "/ultra" || command == "/caveman ultra" -> "ultra"
+            command == "/explain" -> "explain"
+            command == "/caveman" || command == "/caveman full" -> "full"
+            command == "/caveman lite" -> "lite"
+            command == "stop caveman" || command == "normal mode" -> "normal"
+            else -> null
+        } ?: return false
+        viewModelScope.launch {
+            settingsRepository.update(_settings.value.endpoint, _settings.value.model, _settings.value.darkMode, _settings.value.agentMode, mode)
+        }
+        _error.value = "Response mode: ${mode.uppercase()}"
+        return true
+    }
+
+    private fun buildSystemPrompt(s: AppSettings): String {
+        val base = if (s.agentMode) {
+            "You are Keshav Agent, an expert software engineer. Give reliable, executable solutions. When coding, produce complete files or precise patches, tests and verification steps. Never claim a command or build was run unless its result is provided."
+        } else {
+            "You are Keshav, a precise AI assistant. Answer accurately, preserve technical details, and do not invent actions or results."
+        }
+        val mode = when (s.responseMode.lowercase()) {
+            "brief" -> "Respond concise and professional. Answer first. Remove filler."
+            "lite" -> "Use compressed technical language. Short sentences and fragments are acceptable. Keep all important technical substance."
+            "full" -> "Use ultra-compressed caveman style: drop articles, filler, pleasantries and hedging; keep exact technical terms and actionable substance."
+            "ultra" -> "Use maximum token efficiency: terse fragments, minimal words, exact commands/errors/paths unchanged. Never remove safety warnings or required steps."
+            "expert" -> "Respond as a senior engineer: precise terminology, assumptions, tradeoffs, implementation details, tests and verification when relevant."
+            "explain" -> "Explain for a beginner. Use simple language, ordered steps and small examples."
+            else -> "Use standard professional conversational style with useful detail and no unnecessary filler."
+        }
+        return "$base $mode Code blocks, commands, filenames, paths and exact error messages must remain readable and unchanged. For destructive or security-sensitive actions, clearly warn the user and require confirmation when appropriate."
+    }
+
     fun retry() { if (lastPrompt.isNotBlank() && !_busy.value) send(lastPrompt) }
     fun stop() { streamJob?.cancel(); streamJob = null; _busy.value = false }
     fun deleteSession(id: String) { viewModelScope.launch { repository.deleteSession(id); if (_session.value.id == id) newChat() } }
     fun clearAll() { viewModelScope.launch { repository.deleteAll(); newChat() } }
-    fun saveSettings(endpoint: String, model: String, darkMode: Boolean, agentMode: Boolean, apiKey: String) { viewModelScope.launch { settingsRepository.update(endpoint, model, darkMode, agentMode); if (apiKey.isNotBlank()) apiKeyStore.save(apiKey.trim()) } }
+    fun saveSettings(endpoint: String, model: String, darkMode: Boolean, agentMode: Boolean, responseMode: String, apiKey: String) { viewModelScope.launch { settingsRepository.update(endpoint, model, darkMode, agentMode, responseMode); if (apiKey.isNotBlank()) apiKeyStore.save(apiKey.trim()) } }
     fun hasApiKey(): Boolean = !apiKeyStore.get().isNullOrBlank()
 
     private fun loadImage(uri: Uri): Pair<String, AttachmentPayload>? = runCatching {
