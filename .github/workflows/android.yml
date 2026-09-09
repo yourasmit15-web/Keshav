@@ -33,6 +33,8 @@ jobs:
         run: gradle assembleDebug --no-daemon --stacktrace
       - name: Unit tests
         run: gradle test --no-daemon --stacktrace
+      - name: Compile Android UI tests
+        run: gradle compileDebugAndroidTestKotlin --no-daemon --stacktrace
       - name: Build release APK
         run: gradle assembleRelease --no-daemon --stacktrace
       - name: Upload debug APK
