@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.map
 private val Context.keshavDataStore by preferencesDataStore(name = "keshav_settings")
 
 data class AppSettings(
-    val endpoint: String = "https://api.anthropic.com",
-    val model: String = "claude-sonnet-4-5",
+    // AgentRouter provides an Anthropic-compatible endpoint. Keep this configurable so
+    // users can switch providers without changing the app binary.
+    val endpoint: String = "https://co.agentrouter.org",
+    val model: String = "claude-opus-4-8",
     val darkMode: Boolean = true,
     val agentMode: Boolean = false,
     val responseMode: String = "normal"
