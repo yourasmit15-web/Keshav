@@ -59,29 +59,12 @@ fun KeshavRoot(vm: ChatViewModel) {
                     Text("keshav", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
                     Text("AI assistant", color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(16.dp))
-                    NavigationDrawerItem(
-                        label = { Text("Chat") }, selected = section == "Chat",
-                        onClick = { section = "Chat"; scope.launch { drawer.close() } }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("History (${sessions.size})") }, selected = section == "History",
-                        onClick = { section = "History"; scope.launch { drawer.close() } }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("Settings") }, selected = false,
-                        onClick = { settingsOpen = true; scope.launch { drawer.close() } }
-                    )
-                    NavigationDrawerItem(
-                        label = { Text("About / Diagnostics") }, selected = section == "About",
-                        onClick = { section = "About"; scope.launch { drawer.close() } }
-                    )
+                    NavigationDrawerItem(label = { Text("Chat") }, selected = section == "Chat", onClick = { section = "Chat"; scope.launch { drawer.close() } })
+                    NavigationDrawerItem(label = { Text("History (${sessions.size})") }, selected = section == "History", onClick = { section = "History"; scope.launch { drawer.close() } })
+                    NavigationDrawerItem(label = { Text("Settings") }, selected = false, onClick = { settingsOpen = true; scope.launch { drawer.close() } })
+                    NavigationDrawerItem(label = { Text("About / Diagnostics") }, selected = section == "About", onClick = { section = "About"; scope.launch { drawer.close() } })
                     Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            vm.newChat(); section = "Chat"
-                            scope.launch { drawer.close(); snackbar.showSnackbar("New chat created") }
-                        }, modifier = Modifier.fillMaxWidth()
-                    ) { Text("＋ New Chat") }
+                    Button(onClick = { vm.newChat(); section = "Chat"; scope.launch { drawer.close(); snackbar.showSnackbar("New chat created") } }, modifier = Modifier.fillMaxWidth()) { Text("＋ New Chat") }
                     Spacer(Modifier.height(12.dp))
                     Text("Mode: ${settings.responseMode.uppercase()}", color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.weight(1f))
@@ -102,28 +85,16 @@ fun KeshavRoot(vm: ChatViewModel) {
         ) { pad ->
             when (section) {
                 "History" -> HistoryScreen(sessions, vm) { section = "Chat"; notify("Chat opened") }
-                "About" -> AboutScreen(settings, vm.hasApiKey(), notify)
+                "About" -> AboutScreen(settings, vm.hasApiKey(), ::notify)
                 else -> Column(Modifier.fillMaxSize().padding(pad).imePadding().navigationBarsPadding()) {
-                    if (messages.isEmpty()) {
-                        EmptyState(onSuggestion = { input = it })
-                    } else {
-                        LazyColumn(
-                            state = list, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(12.dp)
-                        ) { items(messages, key = { it.id }) { Bubble(it) } }
-                    }
+                    if (messages.isEmpty()) EmptyState(onSuggestion = { input = it })
+                    else LazyColumn(state = list, modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(12.dp)) { items(messages, key = { it.id }) { Bubble(it) } }
                     error?.let { Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) { Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) { Text(it, Modifier.weight(1f)); TextButton(onClick = { vm.retry() }) { Text("Retry") } } } }
                     if (image != null) Surface(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp), shape = RoundedCornerShape(10.dp)) { Row(Modifier.padding(6.dp), verticalAlignment = Alignment.CenterVertically) { Text("📎 Image ready", Modifier.weight(1f)); TextButton(onClick = { image = null }) { Text("Remove") } } }
                     Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         IconButton(onClick = { picker.launch("image/*") }, enabled = !busy) { Text("📎") }
                         TextField(value = input, onValueChange = { input = it }, modifier = Modifier.weight(1f), placeholder = { Text("Message keshav…") }, maxLines = 6)
-                        Button(
-                            onClick = {
-                                if (busy) vm.stop() else if (!vm.hasApiKey()) notify("Open Settings and add your AgentRouter API key first") else {
-                                    vm.send(input, image); input = ""; image = null
-                                }
-                            }, enabled = busy || input.isNotBlank() || image != null
-                        ) { Text(if (busy) "Stop" else "Send") }
+                        Button(onClick = { if (busy) vm.stop() else if (!vm.hasApiKey()) notify("Open Settings and add your AgentRouter API key first") else { vm.send(input, image); input = ""; image = null } }, enabled = busy || input.isNotBlank() || image != null) { Text(if (busy) "Stop" else "Send") }
                     }
                 }
             }
@@ -131,29 +102,15 @@ fun KeshavRoot(vm: ChatViewModel) {
     }
 
     if (settingsOpen) SettingsDialog(vm, settings, vm.hasApiKey()) { settingsOpen = false; notify("Settings saved") }
-    if (clearOpen) AlertDialog(
-        onDismissRequest = { clearOpen = false }, title = { Text("Clear all chats?") },
-        text = { Text("This removes local history.") },
-        confirmButton = { TextButton(onClick = { vm.clearAll(); clearOpen = false; section = "Chat"; notify("All chats cleared") }) { Text("Clear") } },
-        dismissButton = { TextButton(onClick = { clearOpen = false }) { Text("Cancel") } }
-    )
+    if (clearOpen) AlertDialog(onDismissRequest = { clearOpen = false }, title = { Text("Clear all chats?") }, text = { Text("This removes local history.") }, confirmButton = { TextButton(onClick = { vm.clearAll(); clearOpen = false; section = "Chat"; notify("All chats cleared") }) { Text("Clear") } }, dismissButton = { TextButton(onClick = { clearOpen = false }) { Text("Cancel") } })
 }
 
 @Composable private fun HistoryScreen(sessions: List<com.keshav.ai.domain.model.ChatSession>, vm: ChatViewModel, opened: () -> Unit) {
     if (sessions.isEmpty()) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text("No saved chats yet") }
-    else LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        items(sessions, key = { it.id }) { s ->
-            ElevatedCard(onClick = { vm.selectSession(s.id); opened() }, modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) { Text(s.title, fontWeight = FontWeight.Bold); Text("${s.messageCount} messages", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-                    Text("Open")
-                }
-            }
-        }
-    }
+    else LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(sessions, key = { it.id }) { s -> ElevatedCard(onClick = { vm.selectSession(s.id); opened() }, modifier = Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(s.title, fontWeight = FontWeight.Bold); Text("${s.messageCount} messages", color = MaterialTheme.colorScheme.onSurfaceVariant) }; Text("Open") } } } }
 }
 
-@Composable private fun AboutScreen(settings: AppSettings, keyExists: Boolean, notify: (String) -> Unit) {
+@Composable private fun AboutScreen(settings: AppSettings, keyExists: Boolean, onNotify: (String) -> Unit) {
     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text("Keshav diagnostics", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("UI status: Ready")
@@ -161,7 +118,7 @@ fun KeshavRoot(vm: ChatViewModel) {
         Text("Endpoint: ${settings.endpoint}")
         Text("Model: ${settings.model}")
         Text("Agent mode: ${if (settings.agentMode) "On" else "Off"}")
-        Button(onClick = { notify(if (keyExists) "API key is configured. Send a test message from Chat." else "Add an API key in Settings before testing AI.") }) { Text("Run connection check") }
+        Button(onClick = { onNotify(if (keyExists) "API key is configured. Send a test message from Chat." else "Add an API key in Settings before testing AI.") }) { Text("Run connection check") }
     }
 }
 
@@ -179,30 +136,27 @@ fun KeshavRoot(vm: ChatViewModel) {
     val user = m.role == ChatRole.USER
     Row(Modifier.fillMaxWidth(), horizontalArrangement = if (user) Arrangement.End else Arrangement.Start) {
         Surface(shape = RoundedCornerShape(18.dp), color = if (user) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth(if (user) .86f else .94f)) {
-            Column(Modifier.padding(14.dp)) { Text(if (user) "You" else "keshav", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary); Spacer(Modifier.height(5.dp)); Markdown(m.content); if (m.attachmentNames.isNotEmpty()) Text("📎 ${m.attachmentNames.joinToString()}", color = MaterialTheme.colorScheme.primary); if (m.status == MessageStatus.STREAMING) Text("●●●", color = MaterialTheme.colorScheme.primary) }
+            Column(Modifier.padding(14.dp)) {
+                if (m.attachmentNames.isNotEmpty()) Text("📎 ${m.attachmentNames.joinToString()}", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Markdown(m.content)
+                if (m.status == MessageStatus.STREAMING) { Spacer(Modifier.height(6.dp)); LinearProgressIndicator(Modifier.fillMaxWidth()) }
+            }
         }
     }
 }
 
-@Composable private fun Markdown(text: String) { Column { text.split('\n').forEach { line -> when { line.startsWith("### ") -> Text(line.drop(4), fontWeight = FontWeight.Bold); line.startsWith("## ") -> Text(line.drop(3), fontWeight = FontWeight.Bold, fontSize = 19.sp); line.startsWith("# ") -> Text(line.drop(2), fontWeight = FontWeight.Bold, fontSize = 22.sp); line.startsWith("- ") -> Text("• ${line.drop(2)}"); line.isBlank() -> Spacer(Modifier.height(4.dp)); else -> Text(inlineMarkdown(line)) } } } }
-private fun inlineMarkdown(text: String): AnnotatedString = buildAnnotatedString { val r = Regex("(\\*\\*.+?\\*\\*)|(`.+?`)"); var last = 0; r.findAll(text).forEach { m -> append(text.substring(last, m.range.first)); if (m.value.startsWith("**")) withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(m.value.removeSurrounding("**")) } else withStyle(SpanStyle(fontFamily = FontFamily.Monospace, background = Color(0x22000000))) { append(m.value.removeSurrounding("`")) }; last = m.range.last + 1 }; append(text.substring(last)) }
+@Composable private fun Markdown(text: String) {
+    if (text.isBlank()) Text("…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    else Text(inlineMarkdown(text), style = LocalTextStyle.current.copy(fontFamily = FontFamily.Default))
+}
 
-@Composable private fun SettingsDialog(vm: ChatViewModel, s: AppSettings, keyExists: Boolean, close: () -> Unit) {
-    var endpoint by remember(s.endpoint) { mutableStateOf(s.endpoint) }
-    var model by remember(s.model) { mutableStateOf(s.model) }
-    var key by remember { mutableStateOf("") }
-    var dark by remember(s.darkMode) { mutableStateOf(s.darkMode) }
-    var agent by remember(s.agentMode) { mutableStateOf(s.agentMode) }
-    var mode by remember(s.responseMode) { mutableStateOf(s.responseMode) }
-    val modes = listOf("brief", "normal", "expert", "ultra", "explain", "lite", "full")
-    AlertDialog(onDismissRequest = close, title = { Text("keshav settings") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("API endpoint") }, singleLine = true)
-        OutlinedTextField(value = model, onValueChange = { model = it }, label = { Text("Model") }, singleLine = true)
-        OutlinedTextField(value = key, onValueChange = { key = it }, label = { Text(if (keyExists) "API key (leave blank to keep)" else "AgentRouter API key") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-        Text("Response mode", fontWeight = FontWeight.Bold)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) { modes.forEach { m -> FilterChip(selected = mode == m, onClick = { mode = m }, label = { Text(m) }) } }
-        Text("Commands: /brief /normal /expert /ultra /explain /caveman", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("Dark theme", Modifier.weight(1f)); Switch(checked = dark, onCheckedChange = { dark = it }) }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text("Agent mode", Modifier.weight(1f)); Switch(checked = agent, onCheckedChange = { agent = it }) }
-    } }, confirmButton = { TextButton(onClick = { vm.saveSettings(endpoint, model, dark, agent, mode, key); close() }) { Text("Save") } }, dismissButton = { TextButton(onClick = close) { Text("Cancel") } })
+private fun inlineMarkdown(value: String): AnnotatedString {
+    val builder = AnnotatedString.Builder()
+    val lines = value.split('\n')
+    lines.forEachIndexed { index, line ->
+        val clean = line.replace(Regex("^#{1,6}\\s*"), "").replace("**", "")
+        builder.append(clean)
+        if (index < lines.lastIndex) builder.append("\n")
+    }
+    return builder.toAnnotatedString()
 }
