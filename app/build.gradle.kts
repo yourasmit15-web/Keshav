@@ -11,8 +11,8 @@ android {
         applicationId = "com.keshav.ai"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "1.4.0"
+        versionCode = 6
+        versionName = "1.4.1"
     }
     buildTypes {
         release {
@@ -46,6 +46,7 @@ dependencies {
     implementation("io.ktor:ktor-client-core:3.5.2")
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
     implementation("io.ktor:ktor-client-content-negotiation:3.5.2")
+    implementation("io.ktor:ktor-client-sse:3.5.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
