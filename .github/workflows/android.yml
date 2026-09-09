@@ -60,10 +60,32 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Run Compose UI tests on Android emulator
+      - name: Run Compose UI tests on stable Android emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: 34
+          target: google_apis
           arch: x86_64
           profile: pixel_2
-          script: gradle connectedDebugAndroidTest --no-daemon --stacktrace
+          force-avd-creation: true
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
+          disable-animations: true
+          script: |
+            adb wait-for-device
+            for i in $(seq 1 90); do
+              boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
+              if [ "$boot" = "1" ]; then break; fi
+              sleep 2
+            done
+            adb shell input keyevent 82 || true
+            gradle connectedDebugAndroidTest --no-daemon --stacktrace
+      - name: Upload Android test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: keshav-android-test-reports
+          path: |
+            app/build/reports/androidTests/**
+            app/build/outputs/androidTest-results/**
+          if-no-files-found: warn
