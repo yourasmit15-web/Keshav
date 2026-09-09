@@ -24,7 +24,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-class AnthropicRemote(private val baseUrl: String, private val apiKey: String, private val model: String = "claude-sonnet-4-5") {
+class AnthropicRemote(private val baseUrl: String, private val apiKey: String, private val model: String = "claude-opus-4-8") {
     private val client = HttpClient(OkHttp) {
         install(ContentNegotiation)
         install(SSE)
@@ -32,7 +32,7 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
     }
 
     fun stream(messages: List<PromptMessage>, systemPrompt: String? = null): Flow<StreamEvent> = flow {
-        if (apiKey.isBlank()) { emit(StreamEvent.Error("Add your Anthropic API key in Settings first.")); return@flow }
+        if (apiKey.isBlank()) { emit(StreamEvent.Error("Add your AgentRouter API key in Settings first.")); return@flow }
         try {
             client.sse(urlString = "${baseUrl.trimEnd('/')}/v1/messages", request = {
                 method = HttpMethod.Post
@@ -41,7 +41,7 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
                 header("anthropic-version", "2023-06-01")
                 header("accept", "text/event-stream")
                 setBody(buildJsonObject {
-                    put("model", model)
+                    put("model", model.ifBlank { "claude-opus-4-8" })
                     put("max_tokens", 4096)
                     put("stream", true)
                     if (!systemPrompt.isNullOrBlank()) put("system", systemPrompt)
@@ -49,22 +49,13 @@ class AnthropicRemote(private val baseUrl: String, private val apiKey: String, p
                         messages.forEach { message ->
                             add(buildJsonObject {
                                 put("role", if (message.role.name == "USER") "user" else "assistant")
-                                if (message.attachments.isEmpty()) {
-                                    put("content", message.content)
-                                } else {
-                                    putJsonArray("content") {
-                                        if (message.content.isNotBlank()) add(buildJsonObject { put("type", "text"); put("text", message.content) })
-                                        message.attachments.forEach { a ->
-                                            add(buildJsonObject {
-                                                put("type", "image")
-                                                putJsonObject("source") {
-                                                    put("type", "base64")
-                                                    put("media_type", a.mimeType)
-                                                    put("data", a.base64)
-                                                }
-                                            })
-                                        }
-                                    }
+                                if (message.attachments.isEmpty()) put("content", message.content)
+                                else putJsonArray("content") {
+                                    if (message.content.isNotBlank()) add(buildJsonObject { put("type", "text"); put("text", message.content) })
+                                    message.attachments.forEach { a -> add(buildJsonObject {
+                                        put("type", "image")
+                                        putJsonObject("source") { put("type", "base64"); put("media_type", a.mimeType); put("data", a.base64) }
+                                    }) }
                                 }
                             })
                         }
