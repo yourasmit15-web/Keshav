@@ -71,15 +71,8 @@ jobs:
           emulator-boot-timeout: 900
           emulator-options: -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none
           disable-animations: true
-          script: |
-            adb wait-for-device
-            for i in $(seq 1 90); do
-              boot=$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')
-              if [ "$boot" = "1" ]; then break; fi
-              sleep 2
-            done
-            adb shell input keyevent 82 || true
-            gradle connectedDebugAndroidTest --no-daemon --stacktrace
+          script: >-
+            adb wait-for-device && adb shell input keyevent 82 || true; gradle connectedDebugAndroidTest --no-daemon --stacktrace
       - name: Upload Android test reports
         if: always()
         uses: actions/upload-artifact@v4
