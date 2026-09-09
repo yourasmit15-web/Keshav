@@ -3,13 +3,13 @@ package com.keshav.ai.data.remote
 import com.keshav.ai.domain.model.PromptMessage
 import com.keshav.ai.domain.model.StreamEvent
 import io.ktor.client.HttpClient
+import io.ktor.client.call.body
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.ResponseException
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.sse.SSE
 import io.ktor.client.plugins.sse.sse
-import io.ktor.client.call.bodyAsText
 import io.ktor.client.request.header
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
@@ -115,7 +115,7 @@ class AnthropicRemote(
             throw t
         } catch (e: ResponseException) {
             val status = e.response.status.value
-            val body = runCatching { e.response.bodyAsText() }.getOrNull().orEmpty()
+            val body = runCatching { e.response.body<String>() }.getOrNull().orEmpty()
             emit(StreamEvent.Error(formatHttpError(status, body), retryable = status == 429 || status >= 500))
         } catch (t: Throwable) {
             emit(StreamEvent.Error(t.message ?: "Unable to connect to AgentRouter. Check your internet connection and endpoint.", retryable = true))
